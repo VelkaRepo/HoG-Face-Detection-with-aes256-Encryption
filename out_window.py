@@ -76,7 +76,7 @@ class Ui_OutputDialog(QDialog):
         self.timer.start(10)
 
     def face_rec_(self, frame, encode_list_known, class_names):
-        secret_key = "my_secret_key_256"  # Ganti dengan kunci rahasia Anda
+        secret_key = "d4f7g8h9k0l1m2n3p4q5r6s7t8u9v0w1"  # Ganti dengan kunci rahasia Anda
 
         def mark_attendance(name):
             if self.ClockInButton.isChecked():
@@ -148,7 +148,7 @@ class Ui_OutputDialog(QDialog):
         return frame
 
     def ElapseList(self, name):
-        secret_key = "my_secret_key_256"
+        secret_key = "d4f7g8h9k0l1m2n3p4q5r6s7t8u9v0w1"
         
         with open('Attendance.csv', "r") as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
