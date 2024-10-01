@@ -7,7 +7,7 @@ import subprocess
 # Kunci password untuk admin
 ADMIN_PASSWORD = "administrator"
 
-# Fungsi untuk menjalankan skrip add.py (menambah karyawan)
+# Fungsi untuk menjalankan skrip add.py (menambah Mahasiswa)
 def run_add_employee():
     try:
         subprocess.run(["python", "add.py"], check=True)
@@ -27,7 +27,7 @@ def verify_admin_password():
     password = simpledialog.askstring("Password", "Masukkan password admin:", show="*")
     if password == ADMIN_PASSWORD:
         messagebox.showinfo("Akses Diberikan", "Password benar! Anda dapat mengakses fungsi admin.")
-        add_employee_button.config(state=NORMAL)  # Aktifkan tombol tambah karyawan
+        add_employee_button.config(state=NORMAL)  # Aktifkan tombol tambah Mahasiswa
         decrypt_file_button.config(state=NORMAL)  # Aktifkan tombol decrypt file
     else:
         messagebox.showerror("Akses Ditolak", "Password salah! Akses ditolak.")
@@ -35,15 +35,15 @@ def verify_admin_password():
 
 # GUI utama menggunakan Tkinter
 root = Tk()
-root.title("Admin Panel - Absensi Karyawan")
+root.title("Admin Panel - Absensi Mahasiswa")
 root.geometry("400x300")
 
 # Label untuk judul
 label = Label(root, text="Admin Polibest", font=("Arial", 18))
 label.pack(pady=20)
 
-# Tombol untuk menambah karyawan (add.py)
-add_employee_button = Button(root, text="Tambah Karyawan", command=run_add_employee, font=("Arial", 14), padx=20, pady=10, state=DISABLED)
+# Tombol untuk menambah Mahasiswa (add.py)
+add_employee_button = Button(root, text="Tambah Mahasiswa", command=run_add_employee, font=("Arial", 14), padx=20, pady=10, state=DISABLED)
 add_employee_button.pack(pady=10)
 
 # Tombol untuk mendekripsi attendance.csv (decrypt.py)
