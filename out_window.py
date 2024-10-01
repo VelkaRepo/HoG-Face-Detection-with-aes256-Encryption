@@ -13,72 +13,82 @@ from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 import base64
 
-# Fungsi untuk enkripsi AES-256
-def encrypt_AES256(data, key):
-    key = key.ljust(32)[:32].encode('utf-8')
-    cipher = AES.new(key, AES.MODE_CBC)
-    ct_bytes = cipher.encrypt(pad(data.encode('utf-8'), AES.block_size))
-    iv = base64.b64encode(cipher.iv).decode('utf-8')
-    ct = base64.b64encode(ct_bytes).decode('utf-8')
-    return f"{iv}:{ct}"
+# Global key untuk enkripsi dan dekripsi (pastikan 32 karakter)
+secret_key = "politeknikbhaktisemesta2024sal3"
 
-# Fungsi untuk dekripsi AES-256
-def decrypt_AES256(enc_data, key):
-    key = key.ljust(32)[:32].encode('utf-8')
-    iv, ct = enc_data.split(':')
-    iv = base64.b64decode(iv)
-    ct = base64.b64decode(ct)
-    cipher = AES.new(key, AES.MODE_CBC, iv)
-    pt = unpad(cipher.decrypt(ct), AES.block_size)
-    return pt.decode('utf-8')
+# Fungsi untuk enkripsi data menggunakan AES-256
+def encrypt_AES256(data, key=secret_key):
+    key = key.ljust(32)[:32].encode('utf-8')  # Panjangkan key jadi 32 karakter dan konversi ke bytes
+    cipher = AES.new(key, AES.MODE_CBC)  # Gunakan mode CBC buat cipher AES
+    ct_bytes = cipher.encrypt(pad(data.encode('utf-8'), AES.block_size))  # Enkripsi data yang sudah dipad
+    iv = base64.b64encode(cipher.iv).decode('utf-8')  # Konversi iv jadi base64 biar bisa disimpan
+    ct = base64.b64encode(ct_bytes).decode('utf-8')  # Konversi ciphertext jadi base64 juga
+    return f"{iv}:{ct}"  # Format akhir: iv:ciphertext
 
+# Fungsi untuk dekripsi data yang sudah dienkripsi dengan AES-256
+def decrypt_AES256(enc_data, key=secret_key):
+    key = key.ljust(32)[:32].encode('utf-8')
+    iv, ct = enc_data.split(':')  # Pisahkan iv dan ciphertext
+    iv = base64.b64decode(iv)  # Decode base64 iv
+    ct = base64.b64decode(ct)  # Decode base64 ciphertext
+    cipher = AES.new(key, AES.MODE_CBC, iv)  # Buat cipher baru dengan iv yang di-decode tadi
+    pt = unpad(cipher.decrypt(ct), AES.block_size)  # Dekripsi ciphertext dan unpad hasilnya
+    return pt.decode('utf-8')  # Konversi hasil dekripsi jadi string
 
 class Ui_OutputDialog(QDialog):
     def __init__(self):
         super(Ui_OutputDialog, self).__init__()
-        loadUi("./outputwindow.ui", self)
+        loadUi("./outputwindow.ui", self)  # Load UI dari file .ui
 
+        # Set tanggal dan waktu saat ini di label
         now = QDate.currentDate()
-        current_date = now.toString('ddd dd MMMM yyyy')
-        current_time = datetime.datetime.now().strftime("%I:%M %p")
-        self.Date_Label.setText(current_date)
-        self.Time_Label.setText(current_time)
+        current_date = now.toString('ddd dd MMMM yyyy')  # Format tanggal
+        current_time = datetime.datetime.now().strftime("%I:%M %p")  # Format waktu
+        self.Date_Label.setText(current_date)  # Tampilkan tanggal di label
+        self.Time_Label.setText(current_time)  # Tampilkan waktu di label
 
-        self.image = None
+        self.image = None  # Variabel buat nyimpen frame video
 
     @pyqtSlot()
     def startVideo(self, camera_name):
+        # Tentukan input video (bisa dari webcam atau IP camera)
         if len(camera_name) == 1:
-            self.capture = cv2.VideoCapture(int(camera_name))
+            self.capture = cv2.VideoCapture(int(camera_name))  # Kalau dari webcam, pakai indeks
         else:
-            self.capture = cv2.VideoCapture(camera_name)
+            self.capture = cv2.VideoCapture(camera_name)  # Kalau dari IP camera, pakai URL
         self.timer = QTimer(self)
+
+        # Load semua gambar wajah dari folder "ImagesAttendance"
         path = 'ImagesAttendance'
         if not os.path.exists(path):
-            os.mkdir(path)
-        images = []
-        self.class_names = []
-        self.encode_list = []
-        self.TimeList1 = []
-        self.TimeList2 = []
-        attendance_list = os.listdir(path)
+            os.mkdir(path)  # Bikin folder kalau belum ada
+        images = []  # Buat nyimpen gambar
+        self.class_names = []  # Buat nyimpen nama kelas (nama file)
+        self.encode_list = []  # Buat nyimpen encoding wajah
+        self.TimeList1 = []  # Buat nyimpen waktu Clock In
+        self.TimeList2 = []  # Buat nyimpen waktu Clock Out
+        attendance_list = os.listdir(path)  # Ambil daftar file di folder
 
         for cl in attendance_list:
-            cur_img = cv2.imread(f'{path}/{cl}')
+            cur_img = cv2.imread(f'{path}/{cl}')  # Baca gambar
             images.append(cur_img)
-            self.class_names.append(os.path.splitext(cl)[0])
+            self.class_names.append(os.path.splitext(cl)[0])  # Ambil nama file (tanpa ekstensi)
+        
+        # Encode semua gambar wajah
         for img in images:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            boxes = face_recognition.face_locations(img)
-            encodes_cur_frame = face_recognition.face_encodings(img, boxes)[0]
-            self.encode_list.append(encodes_cur_frame)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Ubah format warna ke RGB
+            boxes = face_recognition.face_locations(img)  # Ambil lokasi wajah
+            encodes_cur_frame = face_recognition.face_encodings(img, boxes)[0]  # Ambil encoding wajah
+            self.encode_list.append(encodes_cur_frame)  # Tambah ke list
+
+        # Mulai timer buat update frame
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(10)
+        self.timer.start(10)  # Update tiap 10ms
 
+    # Fungsi utama buat deteksi dan verifikasi wajah
     def face_rec_(self, frame, encode_list_known, class_names):
-        secret_key = "d4f7g8h9k0l1m2n3p4q5r6s7t8u9v0w1"  # Ganti dengan kunci rahasia Anda
-
         def mark_attendance(name):
+            # Kalau button Clock In ditekan, tandai waktu Clock In
             if self.ClockInButton.isChecked():
                 self.ClockInButton.setEnabled(False)
                 with open('Attendance.csv', 'a') as f:
@@ -87,20 +97,22 @@ class Ui_OutputDialog(QDialog):
                                                            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
                         if buttonReply == QMessageBox.Yes:
                             date_time_string = datetime.datetime.now().strftime("%y/%m/%d %H:%M:%S")
-                            data_to_encrypt = f"{name},{date_time_string},Clock In"
-                            encrypted_data = encrypt_AES256(data_to_encrypt, secret_key)
-                            f.writelines(f'{encrypted_data}\n')
+                            data_to_encrypt = f"{name},{date_time_string},Clock In"  # Format data untuk enkripsi
+                            encrypted_data = encrypt_AES256(data_to_encrypt)  # Enkripsi data
+                            f.writelines(f'{encrypted_data}\n')  # Simpan ke file CSV
 
                             self.ClockInButton.setChecked(False)
-                            self.NameLabel.setText(name)
-                            self.StatusLabel.setText('Clocked In')
-                            self.HoursLabel.setText('Measuring')
+                            self.NameLabel.setText(name)  # Tampilkan nama di label
+                            self.StatusLabel.setText('Clocked In')  # Tampilkan status di label
+                            self.HoursLabel.setText('Measuring')  # Placeholder status
                             self.MinLabel.setText('')
 
-                            self.Time1 = datetime.datetime.now()
+                            self.Time1 = datetime.datetime.now()  # Simpan waktu Clock In
                             self.ClockInButton.setEnabled(True)
                         else:
                             self.ClockInButton.setEnabled(True)
+
+            # Kalau button Clock Out ditekan, tandai waktu Clock Out
             elif self.ClockOutButton.isChecked():
                 self.ClockOutButton.setEnabled(False)
                 with open('Attendance.csv', 'a') as f:
@@ -110,77 +122,74 @@ class Ui_OutputDialog(QDialog):
                         if buttonReply == QMessageBox.Yes:
                             date_time_string = datetime.datetime.now().strftime("%y/%m/%d %H:%M:%S")
                             data_to_encrypt = f"{name},{date_time_string},Clock Out"
-                            encrypted_data = encrypt_AES256(data_to_encrypt, secret_key)
+                            encrypted_data = encrypt_AES256(data_to_encrypt)
                             f.writelines(f'{encrypted_data}\n')
 
                             self.ClockOutButton.setChecked(False)
                             self.NameLabel.setText(name)
                             self.StatusLabel.setText('Clocked Out')
-                            self.Time2 = datetime.datetime.now()
+                            self.Time2 = datetime.datetime.now()  # Simpan waktu Clock Out
 
-                            self.ElapseList(name)
-                            self.TimeList2.append(datetime.datetime.now())
+                            self.ElapseList(name)  # Hitung selisih waktu
+                            self.TimeList2.append(datetime.datetime.now())  # Simpan waktu Clock Out ke list
                             CheckInTime = self.TimeList1[-1]
                             CheckOutTime = self.TimeList2[-1]
-                            self.ElapseHours = (CheckOutTime - CheckInTime)
+                            self.ElapseHours = (CheckOutTime - CheckInTime)  # Hitung total jam kerja
+                            # Tampilkan total waktu kerja
                             self.MinLabel.setText("{:.0f}".format(abs(self.ElapseHours.total_seconds() / 60) % 60) + 'm')
                             self.HoursLabel.setText("{:.0f}".format(abs(self.ElapseHours.total_seconds() / 60 ** 2)) + 'h')
                             self.ClockOutButton.setEnabled(True)
                         else:
                             self.ClockOutButton.setEnabled(True)
 
-        faces_cur_frame = face_recognition.face_locations(frame)
-        encodes_cur_frame = face_recognition.face_encodings(frame, faces_cur_frame)
+        faces_cur_frame = face_recognition.face_locations(frame)  # Ambil lokasi wajah dari frame
+        encodes_cur_frame = face_recognition.face_encodings(frame, faces_cur_frame)  # Ambil encoding wajah dari frame
 
         for encodeFace, faceLoc in zip(encodes_cur_frame, faces_cur_frame):
             match = face_recognition.compare_faces(encode_list_known, encodeFace, tolerance=0.50)
-            face_dis = face_recognition.face_distance(encode_list_known, encodeFace)
+            face_dis = face_recognition.face_distance(encode_list_known, encodeFace)  # Hitung jarak wajah
             name = "unknown"
-            best_match_index = np.argmin(face_dis)
+            best_match_index = np.argmin(face_dis)  # Cari kecocokan terbaik
             if match[best_match_index]:
-                name = class_names[best_match_index].upper()
+                name = class_names[best_match_index].upper()  # Ambil nama berdasarkan kecocokan
+                # Gambarkan kotak dan nama di sekitar wajah
                 y1, x2, y2, x1 = faceLoc
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.rectangle(frame, (x1, y2 - 20), (x2, y2), (0, 255, 0), cv2.FILLED)
-                cv2.putText(frame, name, (x1 + 6, y2 - 6), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
-            mark_attendance(name)
-
-        return frame
-
-    def ElapseList(self, name):
-        secret_key = "d4f7g8h9k0l1m2n3p4q5r6s7t8u9v0w1"
-        
-        with open('Attendance.csv', "r") as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            for row in csv_reader:
-                decrypted_row = decrypt_AES256(','.join(row), secret_key).split(',')
-                if decrypted_row[0] == name:
-                    if decrypted_row[2] == 'Clock In':
-                        Time1 = datetime.datetime.strptime(decrypted_row[1], '%y/%m/%d %H:%M:%S')
-                        self.TimeList1.append(Time1)
-                    elif decrypted_row[2] == 'Clock Out':
-                        Time2 = datetime.datetime.strptime(decrypted_row[1], '%y/%m/%d %H:%M:%S')
-                        self.TimeList2.append(Time2)
+                cv2.putText(frame, name, (x1 + 6, y2 + 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                mark_attendance(name)  # Tandai kehadiran
+        return frame  # Return frame yang sudah di-overlay info wajah
 
     def update_frame(self):
-        ret, self.image = self.capture.read()
-        self.displayImage(self.image, self.encode_list, self.class_names, 1)
+        ret, self.image = self.capture.read()  # Ambil frame dari capture
+        self.display_image(self.image, self.encode_list, self.class_names)
 
-    def displayImage(self, image, encode_list, class_names, window=1):
-        image = cv2.resize(image, (640, 480))
-        try:
-            image = self.face_rec_(image, encode_list, class_names)
-        except Exception as e:
-            print(e)
+    def display_image(self, img, encode_list, class_names):
+        # Resize image, convert ke format QImage, dan tampilkan di UI
+        img = self.face_rec_(img, encode_list, class_names)
         qformat = QImage.Format_Indexed8
-        if len(image.shape) == 3:
-            if image.shape[2] == 4:
+
+        if len(img.shape) == 3:  # Convert ke format QImage
+            if img.shape[2] == 4:
                 qformat = QImage.Format_RGBA8888
             else:
                 qformat = QImage.Format_RGB888
-        outImage = QImage(image, image.shape[1], image.shape[0], image.strides[0], qformat)
-        outImage = outImage.rgbSwapped()
 
-        if window == 1:
-            self.imgLabel.setPixmap(QPixmap.fromImage(outImage))
-            self.imgLabel.setScaledContents(True)
+        out_image = QImage(img, img.shape[1], img.shape[0], img.strides[0], qformat)
+        out_image = out_image.rgbSwapped()  # Swap RGB jadi BGR
+        self.imgLabel.setPixmap(QPixmap.fromImage(out_image))  # Tampilkan di label UI
+        self.imgLabel.setScaledContents(True)
+
+    # Fungsi buat menghitung total jam kerja (misal Clock In dan Clock Out)
+    def ElapseList(self, name):
+    # Ubah file menjadi 'Attendance.csv' biar konsisten dengan yang lain
+    with open('Attendance.csv', 'a') as f:
+        nameList = []
+        now = datetime.datetime.now()
+        self.TimeList2.append(now)  # Tambahkan waktu sekarang ke list TimeList2
+        CheckInTime = self.TimeList1[-1]  # Ambil waktu terakhir Clock In
+        CheckOutTime = self.TimeList2[-1]  # Ambil waktu terakhir Clock Out
+        TotalElapse = CheckOutTime - CheckInTime  # Hitung selisih waktu (total durasi kerja)
+        mins = int(TotalElapse.total_seconds() / 60)  # Hitung total menit
+        hours = int(mins / 60)  # Hitung total jam
+        # Tulis hasil perhitungan durasi ke file 'Attendance.csv' dengan format yang konsisten
+        f.writelines(f'Clocked In: {CheckInTime},Clocked Out: {CheckOutTime},Total Time: {hours}h:{mins % 60}m\n')
